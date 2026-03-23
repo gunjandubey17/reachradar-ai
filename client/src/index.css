@@ -1,0 +1,50 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background: #0f0f1a;
+  color: #e2e8f0;
+  min-height: 100vh;
+}
+
+@layer utilities {
+  .gradient-text {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400;
+  }
+
+  .glass {
+    @apply bg-white/5 backdrop-blur-xl border border-white/10;
+  }
+
+  .glow {
+    box-shadow: 0 0 40px rgba(99, 102, 241, 0.15), 0 0 80px rgba(99, 102, 241, 0.05);
+  }
+}
+
+/* Risk score animation */
+@keyframes pulse-risk {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.risk-pulse {
+  animation: pulse-risk 2s ease-in-out infinite;
+}
+
+/* Upload zone */
+.upload-zone {
+  @apply border-2 border-dashed border-white/20 rounded-2xl p-12 text-center
+         transition-all duration-300 cursor-pointer;
+}
+
+.upload-zone:hover, .upload-zone.drag-over {
+  @apply border-indigo-400 bg-indigo-500/10;
+}

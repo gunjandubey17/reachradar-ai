@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm create:*)",
+      "Bash(npx --yes create-vite@latest client --template react)",
+      "Bash(npm install:*)",
+      "Bash(npx vite:*)",
+      "Bash(timeout 5 node src/index.js)",
+      "Bash(where vercel:*)",
+      "Bash(where railway:*)",
+      "Bash(where render:*)",
+      "Bash(where gh:*)",
+      "Bash(where git:*)",
+      "Bash(winget install:*)",
+      "Bash(gh:*)",
+      "Bash(npm uninstall:*)",
+      "Bash(\"/c/Program Files/GitHub CLI/gh.exe\" auth status 2>&1)",
+      "Bash(\"/c/Program Files/GitHub CLI/gh.exe\" auth login --with-token)"
+    ]
+  }
+}
