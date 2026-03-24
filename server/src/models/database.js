@@ -1,12 +1,5 @@
 import initSqlJs from 'sql.js';
-import { readFileSync, writeFileSync, existsSync } from 'fs';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-const dbPath = join(__dirname, '../../data.db');
 let wrappedDb;
 
 export function getDB() {
@@ -15,24 +8,13 @@ export function getDB() {
 }
 
 function createWrapper(sqlDb) {
-  function saveDB() {
-    const data = sqlDb.export();
-    const buffer = Buffer.from(data);
-    writeFileSync(dbPath, buffer);
-  }
-
-  // Auto-save every 5 seconds
-  setInterval(saveDB, 5000);
-
   return {
     exec: (sql) => {
       sqlDb.run(sql);
-      saveDB();
     },
     prepare: (sql) => ({
       run: (...params) => {
         sqlDb.run(sql, params);
-        saveDB();
       },
       get: (...params) => {
         const stmt = sqlDb.prepare(sql);
@@ -66,15 +48,10 @@ function createWrapper(sqlDb) {
 }
 
 export async function initDB() {
-  const SQL = await initSqlJs();
+  if (wrappedDb) return; // already initialized
 
-  let sqlDb;
-  if (existsSync(dbPath)) {
-    const fileBuffer = readFileSync(dbPath);
-    sqlDb = new SQL.Database(fileBuffer);
-  } else {
-    sqlDb = new SQL.Database();
-  }
+  const SQL = await initSqlJs();
+  const sqlDb = new SQL.Database(); // in-memory DB for serverless
 
   wrappedDb = createWrapper(sqlDb);
 
@@ -124,5 +101,5 @@ export async function initDB() {
     )
   `);
 
-  console.log('Database initialized');
+  console.log('Database initialized (in-memory)');
 }

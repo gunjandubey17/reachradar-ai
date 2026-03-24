@@ -27,9 +27,26 @@ const upload = multer({
 
 const router = Router();
 
+// Wrap multer to handle errors gracefully
+function handleUpload(req, res) {
+  return new Promise((resolve, reject) => {
+    upload.single('file')(req, res, (err) => {
+      if (err) reject(err);
+      else resolve();
+    });
+  });
+}
+
 // Run a new audit
-router.post('/analyze', optionalAuth, upload.single('file'), async (req, res) => {
+router.post('/analyze', optionalAuth, async (req, res) => {
   try {
+    // Try to parse multipart form data (file upload)
+    try {
+      await handleUpload(req, res);
+    } catch (uploadErr) {
+      console.log('Upload parse skipped:', uploadErr.message);
+    }
+
     const { platform, manualData } = req.body;
 
     if (!platform) {
