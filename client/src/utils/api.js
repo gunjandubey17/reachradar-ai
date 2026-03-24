@@ -21,7 +21,13 @@ export async function apiPost(path, body, isFormData = false) {
     body: isFormData ? body : JSON.stringify(body),
   });
 
-  const data = await res.json();
+  const text = await res.text();
+  let data;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    throw new Error(res.status === 413 ? 'File too large. Please use a smaller image.' : `Server error (${res.status})`);
+  }
   if (!res.ok) throw new Error(data.error || 'Request failed');
   return data;
 }

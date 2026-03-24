@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Check, Zap, Crown } from 'lucide-react';
-import { apiPost, getUser } from '../utils/api';
+import { apiPost, getUser, setUser } from '../utils/api';
 
 const plans = [
   {
@@ -23,60 +23,122 @@ const plans = [
   {
     id: 'monthly',
     name: 'Pro Monthly',
-    price: 9,
+    price: 4.99,
     period: '/month',
     desc: 'For active creators',
     features: [
       'Unlimited audits',
-      'All 5 platforms',
+      'All 6 platforms',
       'PDF report downloads',
-      'Pre-post safety checker',
+      'Pre-post content checker',
       'Virality predictor',
-      'Trend alerts',
+      'AI Image Improver',
     ],
     cta: 'Start Pro',
     highlight: true,
     icon: Zap,
   },
   {
-    id: 'lifetime_early',
-    name: 'Lifetime',
-    price: 49,
-    period: ' one-time',
-    desc: 'First 500 users only',
-    originalPrice: 79,
+    id: 'yearly',
+    name: 'Pro Yearly',
+    price: 29.99,
+    period: '/year',
+    desc: 'Save 50% — best value',
+    originalPrice: 59.88,
     features: [
-      'Everything in Pro',
-      'Lifetime access forever',
+      'Everything in Pro Monthly',
+      '50% cheaper than monthly',
       'Priority support',
       'Early access to new features',
-      'No recurring charges',
-      'Lock in before price doubles',
+      'Cancel anytime',
+      'Lock in lowest price',
     ],
-    cta: 'Get Lifetime Access',
+    cta: 'Get Yearly Pro',
     highlight: false,
     icon: Crown,
-    badge: 'BEST VALUE',
+    badge: 'SAVE 50%',
   },
 ];
+
+function loadRazorpayScript() {
+  return new Promise((resolve) => {
+    if (document.getElementById('razorpay-script')) return resolve(true);
+    const script = document.createElement('script');
+    script.id = 'razorpay-script';
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
+}
 
 export default function Pricing() {
   const [loading, setLoading] = useState('');
   const user = getUser();
+  const navigate = useNavigate();
 
   const handleCheckout = async (planId) => {
     if (!user) {
-      window.location.href = '/register';
+      navigate('/register', { state: { from: '/pricing' } });
       return;
     }
 
     setLoading(planId);
     try {
-      const { url } = await apiPost('/payments/create-checkout', { planId });
-      if (url) window.location.href = url;
+      // Load Razorpay script
+      const loaded = await loadRazorpayScript();
+      if (!loaded) throw new Error('Failed to load payment gateway');
+
+      // Create order on backend
+      const order = await apiPost('/payments/create-order', { planId });
+
+      // Open Razorpay checkout
+      const options = {
+        key: order.keyId,
+        amount: order.amount,
+        currency: order.currency,
+        name: 'ReachRadar AI',
+        description: order.planName,
+        order_id: order.orderId,
+        prefill: {
+          email: user.email,
+        },
+        theme: {
+          color: '#4f46e5',
+        },
+        handler: async (response) => {
+          // Verify payment on backend
+          try {
+            const result = await apiPost('/payments/verify', {
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+              planId,
+            });
+            if (result.success) {
+              // Update local user data
+              const updatedUser = { ...user, plan: 'pro' };
+              setUser(updatedUser);
+              alert('Payment successful! You are now a Pro member.');
+              navigate('/dashboard');
+            }
+          } catch (err) {
+            alert('Payment verification failed. Please contact support.');
+          }
+        },
+        modal: {
+          ondismiss: () => setLoading(''),
+        },
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.on('payment.failed', (response) => {
+        alert('Payment failed: ' + (response.error?.description || 'Please try again'));
+        setLoading('');
+      });
+      rzp.open();
     } catch (err) {
-      alert(err.message || 'Payment failed. Is Stripe configured?');
-    } finally {
+      alert(err.message || 'Payment failed. Please try again.');
       setLoading('');
     }
   };
@@ -152,7 +214,7 @@ export default function Pricing() {
                     : 'bg-white/10 hover:bg-white/15'
                 }`}
               >
-                {loading === plan.id ? 'Redirecting...' : plan.cta}
+                {loading === plan.id ? 'Processing...' : plan.cta}
               </button>
             )}
           </div>
@@ -160,7 +222,7 @@ export default function Pricing() {
       </div>
 
       <p className="text-center text-xs text-gray-600 mt-8">
-        Payments processed securely via Stripe. Cancel anytime for monthly plans.
+        Payments processed securely via Razorpay. Cancel anytime for monthly plans.
       </p>
     </div>
   );

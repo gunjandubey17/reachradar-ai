@@ -70,7 +70,7 @@ export default function Dashboard() {
                   </div>
                   <div>
                     <div className="font-medium capitalize">{audit.platform}</div>
-                    <div className="text-xs text-gray-500">{audit.file_name}</div>
+                    <div className="text-xs text-gray-500">{audit.file_name || 'Algorithm Audit'}</div>
                   </div>
                 </div>
                 <div className="text-right">

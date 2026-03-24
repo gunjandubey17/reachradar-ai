@@ -1,0 +1,159 @@
+import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
+
+export async function downloadAuditPDF(auditData, platform) {
+  const pdfDoc = await PDFDocument.create();
+  const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+  const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+
+  let page = pdfDoc.addPage([612, 792]);
+  let y = 740;
+
+  const addPage = () => {
+    page = pdfDoc.addPage([612, 792]);
+    y = 740;
+  };
+
+  const drawText = (text, options = {}) => {
+    const {
+      size = 11,
+      bold = false,
+      color = rgb(0.1, 0.1, 0.1),
+      x = 50,
+      maxWidth = 512,
+    } = options;
+
+    const usedFont = bold ? boldFont : font;
+    const safeText = String(text || '').replace(/[^\x20-\x7E]/g, ' ');
+
+    const words = safeText.split(' ');
+    let line = '';
+    const lines = [];
+
+    for (const word of words) {
+      const testLine = line ? `${line} ${word}` : word;
+      const width = usedFont.widthOfTextAtSize(testLine, size);
+      if (width > maxWidth && line) {
+        lines.push(line);
+        line = word;
+      } else {
+        line = testLine;
+      }
+    }
+    if (line) lines.push(line);
+
+    for (const l of lines) {
+      if (y < 60) {
+        addPage();
+      }
+      page.drawText(l, { x, y, size, font: usedFont, color });
+      y -= size + 4;
+    }
+    y -= 4;
+  };
+
+  // Header
+  const riskColor =
+    auditData.risk_score > 70
+      ? rgb(0.9, 0.1, 0.1)
+      : auditData.risk_score > 40
+        ? rgb(0.9, 0.6, 0.0)
+        : rgb(0.1, 0.7, 0.2);
+
+  drawText('ReachRadar AI - Algorithm Audit Report', { size: 22, bold: true, color: rgb(0.2, 0.2, 0.7) });
+  y -= 8;
+  drawText(`Platform: ${platform || 'Multi-platform'}`, { size: 13 });
+  drawText(`Generated: ${new Date().toLocaleDateString()}`, { size: 10, color: rgb(0.5, 0.5, 0.5) });
+  y -= 12;
+
+  // Risk Score
+  drawText(`RISK SCORE: ${auditData.risk_score}/100 (${auditData.risk_level})`, {
+    size: 18, bold: true, color: riskColor,
+  });
+  y -= 4;
+
+  if (auditData.predicted_30day_reach_drop) {
+    drawText(`Predicted 30-Day Reach Drop: ${auditData.predicted_30day_reach_drop}`, { size: 13, bold: true });
+  }
+  if (auditData.potential_monthly_loss) {
+    drawText(`Potential Monthly Loss: ${auditData.potential_monthly_loss}`, { size: 13, bold: true });
+  }
+  if (auditData.authenticity_score) {
+    drawText(`Authenticity Score: ${auditData.authenticity_score}/100`, { size: 13, bold: true });
+  }
+  y -= 8;
+
+  // Summary
+  if (auditData.summary) {
+    drawText('EXECUTIVE SUMMARY', { size: 14, bold: true, color: rgb(0.2, 0.2, 0.6) });
+    drawText(auditData.summary);
+    y -= 8;
+  }
+
+  // Priority Action
+  if (auditData.priority_action) {
+    drawText('PRIORITY ACTION', { size: 14, bold: true, color: rgb(0.8, 0.4, 0.0) });
+    drawText(auditData.priority_action);
+    y -= 8;
+  }
+
+  // Red Flags
+  if (auditData.top_red_flags?.length) {
+    drawText('TOP RED FLAGS', { size: 14, bold: true, color: rgb(0.8, 0.1, 0.1) });
+    for (const flag of auditData.top_red_flags) {
+      const isObj = typeof flag === 'object';
+      const flagText = isObj ? `[${(flag.severity || '').toUpperCase()}] ${flag.flag}` : flag;
+      drawText(`  ${flagText}`, { size: 11 });
+      if (isObj && flag.explanation) {
+        drawText(`    ${flag.explanation}`, { size: 10, color: rgb(0.4, 0.4, 0.4) });
+      }
+      if (isObj && flag.how_to_fix?.steps?.length) {
+        drawText('    How to fix:', { size: 10, bold: true, color: rgb(0.1, 0.5, 0.2) });
+        flag.how_to_fix.steps.forEach((step, j) => {
+          drawText(`      ${j + 1}. ${step}`, { size: 10, color: rgb(0.3, 0.3, 0.3) });
+        });
+      }
+    }
+    y -= 8;
+  }
+
+  // Fix Plan
+  if (auditData.fix_plan?.length) {
+    drawText('STEP-BY-STEP FIX PLAN', { size: 14, bold: true, color: rgb(0.1, 0.5, 0.2) });
+    if (auditData.recovery_timeline) {
+      drawText(`Recovery Timeline: ${auditData.recovery_timeline}`, { size: 11, color: rgb(0.3, 0.3, 0.6) });
+    }
+    for (const step of auditData.fix_plan) {
+      const isObj = typeof step === 'object';
+      const stepText = isObj ? `Step ${step.step}: ${step.action}` : step;
+      drawText(stepText, { size: 11, bold: true });
+      if (isObj) {
+        if (step.timeline) drawText(`    Timeline: ${step.timeline}`, { size: 10, color: rgb(0.3, 0.3, 0.3) });
+        if (step.impact) drawText(`    Impact: ${step.impact}`, { size: 10, color: rgb(0.3, 0.3, 0.3) });
+        if (step.how_to) drawText(`    How to: ${step.how_to}`, { size: 10, color: rgb(0.3, 0.3, 0.3) });
+      }
+    }
+    y -= 8;
+  }
+
+  // Positive Signals
+  if (auditData.positive_signals?.length) {
+    drawText('WHAT YOU ARE DOING RIGHT', { size: 14, bold: true, color: rgb(0.1, 0.6, 0.3) });
+    for (const signal of auditData.positive_signals) {
+      drawText(`  + ${signal}`, { size: 11 });
+    }
+  }
+
+  // Footer on last page
+  page.drawText('Generated by ReachRadar AI - reachradarai.com', {
+    x: 50, y: 30, size: 9, font, color: rgb(0.5, 0.5, 0.5),
+  });
+
+  const pdfBytes = await pdfDoc.save();
+  const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `ReachRadar-Audit-${platform || 'report'}-${new Date().toISOString().slice(0, 10)}.pdf`;
+  a.click();
+  URL.revokeObjectURL(url);
+}

@@ -1,0 +1,8 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "com.reachradarai.twa",
+        "sha256_cert_fingerprints": ["D6:8E:02:AF:7C:A9:FF:47:FF:90:31:8F:EC:DE:01:17:0F:D4:22:B4:69:07:FE:78:0F:33:8D:B3:36:B1:D5:06"]
+      }
+    }]

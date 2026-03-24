@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Loader2, Radar } from 'lucide-react';
 import { apiPost, setToken, setUser } from '../utils/api';
 
@@ -10,6 +10,8 @@ export default function Auth({ mode }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
+  const location = useLocation();
+  const from = location.state?.from || '/dashboard';
   const isLogin = mode === 'login';
 
   const handleSubmit = async (e) => {
@@ -24,7 +26,7 @@ export default function Auth({ mode }) {
 
       setToken(data.token);
       setUser(data.user);
-      navigate('/dashboard');
+      navigate(from);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -104,6 +106,10 @@ export default function Auth({ mode }) {
               Don't have an account?{' '}
               <Link to="/register" className="text-indigo-400 hover:text-indigo-300">
                 Sign up
+              </Link>
+              <br />
+              <Link to="/forgot-password" className="text-gray-500 hover:text-gray-300 text-xs mt-2 inline-block">
+                Forgot password?
               </Link>
             </>
           ) : (

@@ -1,5 +1,6 @@
 const platforms = [
   { id: 'instagram', name: 'Instagram', icon: '📸', color: 'from-pink-500 to-purple-500' },
+  { id: 'facebook', name: 'Facebook', icon: '📘', color: 'from-blue-500 to-blue-700' },
   { id: 'youtube', name: 'YouTube', icon: '🎬', color: 'from-red-500 to-red-700' },
   { id: 'tiktok', name: 'TikTok', icon: '🎵', color: 'from-gray-800 to-gray-900' },
   { id: 'twitter', name: 'X / Twitter', icon: '𝕏', color: 'from-gray-700 to-gray-900' },
@@ -8,7 +9,7 @@ const platforms = [
 
 export default function PlatformSelect({ selected, onChange }) {
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
       {platforms.map((p) => (
         <button
           key={p.id}
