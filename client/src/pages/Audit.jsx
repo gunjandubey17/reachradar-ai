@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Upload, FileText, Loader2, AlertTriangle, Camera, X, Image, ArrowDown, Sparkles } from 'lucide-react';
 import PlatformSelect from '../components/PlatformSelect';
-import { apiPost, getToken } from '../utils/api';
+import { apiGet, apiPost, getToken, getUser, setUser } from '../utils/api';
 
 const PLATFORM_TIPS = {
   instagram: {
@@ -63,6 +63,7 @@ function fileToBase64(file) {
 }
 
 export default function Audit() {
+  const [user, setCurrentUser] = useState(getUser());
   const [platform, setPlatform] = useState('');
   const [file, setFile] = useState(null);
   const [images, setImages] = useState([]); // { file, preview, base64Data }
@@ -76,8 +77,19 @@ export default function Audit() {
 
   useEffect(() => {
     document.title = 'Free Algorithm Audit — Why Is My Reach Dropping? Shadowban Checker | ReachRadar AI';
-    if (!getToken()) navigate('/login', { state: { from: '/audit' } });
-  }, []);
+    if (!getToken()) {
+      navigate('/login', { state: { from: '/audit' } });
+      return;
+    }
+    apiGet('/auth/me')
+      .then((data) => {
+        if (data?.user) {
+          setUser(data.user);
+          setCurrentUser(data.user);
+        }
+      })
+      .catch(() => {});
+  }, [navigate]);
 
   const handleFiles = (fileList) => {
     for (const f of fileList) {
@@ -168,6 +180,21 @@ export default function Audit() {
       <p className="text-gray-400 mb-8">
         Upload screenshots, analytics exports, or paste your data. AI reads it all.
       </p>
+
+      {user?.plan === 'free' && (
+        <div className="mb-6 rounded-2xl border border-indigo-500/20 bg-indigo-500/5 p-4">
+          <p className="text-xs uppercase tracking-[0.2em] text-indigo-300 mb-2">Free Plan</p>
+          <div className="flex items-end justify-between gap-4">
+            <div>
+              <div className="text-3xl font-black text-white">{user?.auditsRemaining ?? user?.audits_remaining ?? 5}/5</div>
+              <p className="text-sm text-gray-400">Audits left. Your first 5 audits are free.</p>
+            </div>
+            <Link to="/pricing" className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-sm font-medium transition">
+              Upgrade
+            </Link>
+          </div>
+        </div>
+      )}
 
       {/* Step 1: Platform */}
       <div className="mb-8">

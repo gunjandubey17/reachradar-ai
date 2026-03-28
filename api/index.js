@@ -366,7 +366,14 @@ export default async function handler(req, res) {
 
       const { data: user } = await supabase.from('users').select('id, email, name, plan, audits_remaining').eq('id', tokenUser.id).single();
       if (!user) return res.status(401).json({ error: 'User not found' });
-      return res.json({ user });
+      const planStatus = await checkUserPlan(tokenUser.id);
+      return res.json({
+        user: {
+          ...user,
+          auditsRemaining: planStatus.auditsRemaining ?? user.audits_remaining ?? FREE_AUDIT_LIMIT,
+          prechecksRemaining: planStatus.prechecksRemaining ?? FREE_PRECHECK_LIMIT,
+        },
+      });
     }
 
     // Save audit to history (if logged in)

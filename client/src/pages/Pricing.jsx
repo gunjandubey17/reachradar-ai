@@ -75,6 +75,7 @@ function loadRazorpayScript() {
 
 export default function Pricing() {
   const [loading, setLoading] = useState('');
+  const [selectedPlan, setSelectedPlan] = useState('monthly');
   const user = getUser();
   const navigate = useNavigate();
 
@@ -159,10 +160,11 @@ export default function Pricing() {
         {plans.map((plan) => (
           <div
             key={plan.id}
+            onClick={() => setSelectedPlan(plan.id)}
             className={`rounded-2xl p-6 relative ${
-              plan.highlight
-                ? 'bg-gradient-to-b from-indigo-500/20 to-purple-500/10 border-2 border-indigo-400/40 glow'
-                : 'glass'
+              selectedPlan === plan.id
+                ? 'bg-gradient-to-b from-indigo-500/20 to-purple-500/10 border-2 border-indigo-400/40 glow scale-[1.01]'
+                : 'glass border border-white/5 hover:border-white/15'
             }`}
           >
             {plan.badge && (
@@ -201,7 +203,11 @@ export default function Pricing() {
             {plan.id === 'free' ? (
               <Link
                 to={plan.href}
-                className="block w-full py-3 text-center rounded-xl bg-white/10 hover:bg-white/15 font-medium transition"
+                className={`block w-full py-3 text-center rounded-xl font-medium transition ${
+                  selectedPlan === plan.id
+                    ? 'bg-indigo-600 hover:bg-indigo-500'
+                    : 'bg-white/10 hover:bg-white/15'
+                }`}
               >
                 {plan.cta}
               </Link>
@@ -210,7 +216,7 @@ export default function Pricing() {
                 onClick={() => handleCheckout(plan.id)}
                 disabled={loading === plan.id}
                 className={`w-full py-3 rounded-xl font-medium transition ${
-                  plan.highlight
+                  selectedPlan === plan.id
                     ? 'bg-indigo-600 hover:bg-indigo-500'
                     : 'bg-white/10 hover:bg-white/15'
                 }`}

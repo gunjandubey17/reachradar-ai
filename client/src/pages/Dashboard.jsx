@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { BarChart3, Clock, TrendingDown, Plus } from 'lucide-react';
-import { apiGet, getUser } from '../utils/api';
+import { BarChart3, Clock, Plus } from 'lucide-react';
+import { apiGet, getUser, setUser } from '../utils/api';
 
 export default function Dashboard() {
   const [audits, setAudits] = useState([]);
   const [loading, setLoading] = useState(true);
-  const user = getUser();
+  const [user, setCurrentUser] = useState(getUser());
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -14,11 +14,19 @@ export default function Dashboard() {
       navigate('/login');
       return;
     }
-    apiGet('/audit/history')
-      .then((data) => setAudits(data.audits || []))
-      .catch(() => {})
+    Promise.all([
+      apiGet('/auth/me').catch(() => null),
+      apiGet('/audit/history').catch(() => ({ audits: [] })),
+    ])
+      .then(([meData, auditData]) => {
+        if (meData?.user) {
+          setUser(meData.user);
+          setCurrentUser(meData.user);
+        }
+        setAudits(auditData?.audits || []);
+      })
       .finally(() => setLoading(false));
-  }, []);
+  }, [navigate]);
 
   const riskColor = (score) => {
     if (score <= 25) return 'text-green-400';
@@ -43,6 +51,21 @@ export default function Dashboard() {
           <Plus size={16} /> New Audit
         </Link>
       </div>
+
+      {user?.plan === 'free' && (
+        <div className="grid sm:grid-cols-2 gap-4 mb-8">
+          <div className="glass rounded-2xl p-5 border border-indigo-500/20">
+            <p className="text-xs uppercase tracking-[0.2em] text-indigo-300 mb-2">Free Audits</p>
+            <div className="text-3xl font-black text-white mb-1">{user?.auditsRemaining ?? user?.audits_remaining ?? 5}/5</div>
+            <p className="text-sm text-gray-400">Audits left before you need Pro.</p>
+          </div>
+          <div className="glass rounded-2xl p-5 border border-purple-500/20">
+            <p className="text-xs uppercase tracking-[0.2em] text-purple-300 mb-2">Free Pre-Checks</p>
+            <div className="text-3xl font-black text-white mb-1">{user?.prechecksRemaining ?? 5}/5</div>
+            <p className="text-sm text-gray-400">Content checks left on the free plan.</p>
+          </div>
+        </div>
+      )}
 
       {loading ? (
         <div className="text-center py-20 text-gray-400">Loading...</div>

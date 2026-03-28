@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Eye, Loader2, Shield, TrendingUp, AlertTriangle, Link2, Camera, X, Copy, Check, Sparkles, ChevronDown, ChevronUp, Image, ArrowDown, Pencil } from 'lucide-react';
 import PlatformSelect from '../components/PlatformSelect';
 import ImageImprover from '../components/ImageImprover';
-import { apiPost, getToken } from '../utils/api';
+import { apiGet, apiPost, getToken, getUser, setUser } from '../utils/api';
 
 const PRECHECK_TIPS = {
   instagram: { emoji: '📸', name: 'Instagram', tip: 'Describe your Reel, Story, or Post. Include your niche and target audience for best results.', formats: 'Reels, Carousels, Stories, Single Posts' },
@@ -57,6 +57,7 @@ function CopyBlock({ label, text }) {
 
 export default function PreCheck() {
   const navigate = useNavigate();
+  const [user, setCurrentUser] = useState(getUser());
   const [platform, setPlatform] = useState('');
   const [content, setContent] = useState('');
   const [contentUrl, setContentUrl] = useState('');
@@ -79,8 +80,19 @@ export default function PreCheck() {
 
   useEffect(() => {
     document.title = 'Pre-Post Content Checker — Will My Post Go Viral? Check Before Publishing | ReachRadar AI';
-    if (!getToken()) navigate('/login', { state: { from: '/pre-check' } });
-  }, []);
+    if (!getToken()) {
+      navigate('/login', { state: { from: '/pre-check' } });
+      return;
+    }
+    apiGet('/auth/me')
+      .then((data) => {
+        if (data?.user) {
+          setUser(data.user);
+          setCurrentUser(data.user);
+        }
+      })
+      .catch(() => {});
+  }, [navigate]);
 
   const addImages = (files) => {
     for (const f of files) {
@@ -155,6 +167,21 @@ export default function PreCheck() {
       <p className="text-gray-400 mb-8">
         Describe your content, add a URL or screenshot — AI generates optimized titles, descriptions, hooks & hashtags ready to copy-paste.
       </p>
+
+      {user?.plan === 'free' && (
+        <div className="mb-6 rounded-2xl border border-purple-500/20 bg-purple-500/5 p-4">
+          <p className="text-xs uppercase tracking-[0.2em] text-purple-300 mb-2">Free Plan</p>
+          <div className="flex items-end justify-between gap-4">
+            <div>
+              <div className="text-3xl font-black text-white">{user?.prechecksRemaining ?? 5}/5</div>
+              <p className="text-sm text-gray-400">Pre-post checks left. Your first 5 are free.</p>
+            </div>
+            <a href="/pricing" className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-sm font-medium transition">
+              Upgrade
+            </a>
+          </div>
+        </div>
+      )}
 
       {/* Platform */}
       <div className="mb-6">
