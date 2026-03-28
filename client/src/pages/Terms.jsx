@@ -37,7 +37,7 @@ export default function Terms() {
         <p>ReachRadar AI is provided "as is" without warranties. We are not responsible for any changes to your social media reach, engagement, or account status resulting from following our recommendations.</p>
 
         <h2 className="text-xl font-semibold text-white mt-6">7. Contact</h2>
-        <p>Questions about these terms? Contact us at: <a href="mailto:rakhhbakk@gmail.com" className="text-indigo-400 hover:underline">rakhhbakk@gmail.com</a></p>
+        <p>Questions about these terms? Contact us at: <a href="mailto:gd@reachradarai.com" className="text-indigo-400 hover:underline">gd@reachradarai.com</a></p>
       </div>
     </div>
   );

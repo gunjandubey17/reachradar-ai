@@ -33,7 +33,7 @@ export default function Privacy() {
           <Link to="/delete-account" className="text-indigo-400 hover:underline">
             delete account page
           </Link>{' '}
-          or by contacting us at rakhhbakk@gmail.com. We will delete your data within 30 days of receiving your request.
+          or by contacting us at gd@reachradarai.com. We will delete your data within 30 days of receiving your request.
         </p>
 
         <h2 className="text-xl font-semibold text-white mt-6">5. Security</h2>
@@ -43,7 +43,7 @@ export default function Privacy() {
         <p>We use essential cookies only (authentication tokens stored in localStorage). We do not use tracking cookies or third-party analytics.</p>
 
         <h2 className="text-xl font-semibold text-white mt-6">7. Contact</h2>
-        <p>For privacy-related questions or data deletion requests, contact us at: <a href="mailto:rakhhbakk@gmail.com" className="text-indigo-400 hover:underline">rakhhbakk@gmail.com</a></p>
+        <p>For privacy-related questions or data deletion requests, contact us at: <a href="mailto:gd@reachradarai.com" className="text-indigo-400 hover:underline">gd@reachradarai.com</a></p>
       </div>
     </div>
   );

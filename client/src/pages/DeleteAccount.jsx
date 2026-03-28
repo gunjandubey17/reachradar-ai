@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { ArrowRight, CheckCircle, Clock3, Mail, ShieldAlert, Trash2 } from 'lucide-react';
 import { getUser } from '../utils/api';
 
-const SUPPORT_EMAIL = 'rakhhbakk@gmail.com';
+const SUPPORT_EMAIL = 'gd@reachradarai.com';
 
 function buildMailto(email, reason) {
   const subject = 'Account deletion request';

@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, AlertTriangle, CheckCircle, Clock3, Mail, Shield } from 'lucide-react';
 
-const REPORT_EMAIL = 'rakhhbakk@gmail.com';
+const REPORT_EMAIL = 'gd@reachradarai.com';
 
 export default function SafetyStandards() {
   useEffect(() => {
