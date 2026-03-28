@@ -326,8 +326,8 @@ export default function PreCheck() {
 
       {error && error === 'upgrade' ? (
         <div className="p-6 mb-6 bg-indigo-500/10 border border-indigo-500/30 rounded-xl text-center">
-          <p className="text-white font-semibold mb-2">Pro Feature</p>
-          <p className="text-gray-400 text-sm mb-4">Pre-Post Checker is available on the Pro plan. Upgrade for unlimited content checks, AI image improver, and more.</p>
+          <p className="text-white font-semibold mb-2">Free trial used</p>
+          <p className="text-gray-400 text-sm mb-4">Your 5 free pre-post checks are used. Upgrade for unlimited content checks, AI image improver, and more.</p>
           <a href="/pricing" className="inline-block px-6 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-sm font-medium transition">
             View Pro Plans
           </a>

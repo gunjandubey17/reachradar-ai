@@ -6,6 +6,9 @@ const supabase = process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_KEY
   ? createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY)
   : null;
 
+const FREE_AUDIT_LIMIT = 5;
+const FREE_PRECHECK_LIMIT = 5;
+
 // Simple JWT-like token (base64 encoded JSON with expiry)
 function createToken(payload) {
   const data = { ...payload, exp: Date.now() + 7 * 24 * 60 * 60 * 1000 }; // 7 days
@@ -39,6 +42,17 @@ async function verifyPassword(password, hash) {
   return computed === hash;
 }
 
+async function getFreePrecheckUsage(userId) {
+  if (!supabase) return 0;
+  const { count, error } = await supabase
+    .from('audits')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .eq('risk_level', 'precheck');
+  if (error) return 0;
+  return count || 0;
+}
+
 // Check user plan and enforce limits
 async function checkUserPlan(userId) {
   if (!supabase) return { plan: 'free', allowed: true };
@@ -54,7 +68,11 @@ async function checkUserPlan(userId) {
     if (new Date(user.plan_expires) < new Date()) {
       // Plan expired — downgrade to free
       await supabase.from('users').update({ plan: 'free', plan_period: null, plan_expires: null }).eq('id', userId);
-      return { plan: 'free', auditsRemaining: user.audits_remaining ?? 1 };
+      return {
+        plan: 'free',
+        auditsRemaining: user.audits_remaining ?? FREE_AUDIT_LIMIT,
+        prechecksRemaining: Math.max(FREE_PRECHECK_LIMIT - await getFreePrecheckUsage(userId), 0),
+      };
     }
     return { plan: 'pro', allowed: true };
   }
@@ -62,16 +80,34 @@ async function checkUserPlan(userId) {
   if (user.plan === 'pro') return { plan: 'pro', allowed: true };
 
   // Free plan — check audit limit
-  return { plan: 'free', auditsRemaining: user.audits_remaining ?? 1 };
+  return {
+    plan: 'free',
+    auditsRemaining: user.audits_remaining ?? FREE_AUDIT_LIMIT,
+    prechecksRemaining: Math.max(FREE_PRECHECK_LIMIT - await getFreePrecheckUsage(userId), 0),
+  };
 }
 
 // Decrement free user's audit count
 async function useFreeTrial(userId) {
   if (!supabase) return;
-  await supabase.rpc('decrement_audits', { user_id_input: userId }).catch(() => {
+  await supabase.rpc('decrement_audits', { user_id_input: userId }).catch(async () => {
     // Fallback if RPC doesn't exist
-    supabase.from('users').update({ audits_remaining: 0 }).eq('id', userId);
+    const { data: user } = await supabase.from('users').select('audits_remaining').eq('id', userId).single();
+    const nextRemaining = Math.max((user?.audits_remaining ?? FREE_AUDIT_LIMIT) - 1, 0);
+    await supabase.from('users').update({ audits_remaining: nextRemaining }).eq('id', userId);
   });
+}
+
+async function recordFreePrecheckUsage(userId, platform) {
+  if (!supabase) return;
+  await supabase.from('audits').insert({
+    id: crypto.randomUUID(),
+    user_id: userId,
+    platform: `precheck:${platform || 'general'}`,
+    risk_score: null,
+    risk_level: 'precheck',
+    full_report: JSON.stringify({ type: 'precheck_usage' }),
+  }).catch(() => {});
 }
 
 const AUDIT_SYSTEM_PROMPT = `You are ReachRadar AI — the world's most advanced social media algorithm auditor for 2026.
@@ -244,7 +280,7 @@ export default async function handler(req, res) {
       const id = crypto.randomUUID();
       const password_hash = await hashPassword(password);
       const { error } = await supabase.from('users').insert({
-        id, email, password_hash, name: name || null, plan: 'free', audits_remaining: 1
+        id, email, password_hash, name: name || null, plan: 'free', audits_remaining: FREE_AUDIT_LIMIT
       });
       if (error) return res.status(500).json({ error: 'Registration failed' });
 
@@ -360,6 +396,7 @@ export default async function handler(req, res) {
         .from('audits')
         .select('id, platform, risk_score, risk_level, created_at')
         .eq('user_id', tokenUser.id)
+        .neq('risk_level', 'precheck')
         .order('created_at', { ascending: false })
         .limit(20);
       return res.json({ audits: audits || [] });
@@ -389,8 +426,8 @@ export default async function handler(req, res) {
 
       // Enforce plan limits
       const planStatus = await checkUserPlan(user.id);
-      if (planStatus.plan === 'free' && (planStatus.auditsRemaining ?? 1) <= 0) {
-        return res.status(403).json({ error: 'Free trial used. Upgrade to Pro for unlimited audits.', upgrade: true });
+      if (planStatus.plan === 'free' && (planStatus.auditsRemaining ?? FREE_AUDIT_LIMIT) <= 0) {
+        return res.status(403).json({ error: 'Your 5 free audits are used. Upgrade to Pro for unlimited audits.', upgrade: true });
       }
 
       const { platform, manualData, images } = req.body || {};
@@ -457,10 +494,9 @@ export default async function handler(req, res) {
       const user = getUserFromReq(req);
       if (!user) return res.status(401).json({ error: 'Login required to use the content checker' });
 
-      // Pre-check is Pro only
       const preCheckPlan = await checkUserPlan(user.id);
-      if (preCheckPlan.plan !== 'pro') {
-        return res.status(403).json({ error: 'Pre-Post Checker is a Pro feature. Upgrade to unlock unlimited content checks.', upgrade: true });
+      if (preCheckPlan.plan === 'free' && (preCheckPlan.prechecksRemaining ?? FREE_PRECHECK_LIMIT) <= 0) {
+        return res.status(403).json({ error: 'Your 5 free pre-post checks are used. Upgrade to unlock unlimited content checks.', upgrade: true });
       }
 
       const { content, platform, contentUrl, images, engagementGoal, genre } = req.body || {};
@@ -704,6 +740,7 @@ export default async function handler(req, res) {
       });
 
       const result = parseAIResponse(message.content[0].text);
+      if (preCheckPlan.plan === 'free') await recordFreePrecheckUsage(user.id, platform);
       return res.json(result);
     }
 

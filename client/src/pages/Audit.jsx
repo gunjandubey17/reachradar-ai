@@ -332,7 +332,7 @@ export default function Audit() {
       {error && error === 'upgrade' ? (
         <div className="p-6 mb-6 bg-indigo-500/10 border border-indigo-500/30 rounded-xl text-center">
           <p className="text-white font-semibold mb-2">Free trial used!</p>
-          <p className="text-gray-400 text-sm mb-4">Upgrade to Pro for unlimited audits, pre-post checker, AI image improver, and more.</p>
+          <p className="text-gray-400 text-sm mb-4">Your 5 free audits are used. Upgrade to Pro for unlimited audits, pre-post checker, AI image improver, and more.</p>
           <Link to="/pricing" className="inline-block px-6 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-sm font-medium transition">
             View Pro Plans
           </Link>
@@ -376,7 +376,7 @@ export default function Audit() {
       </button>
 
       <p className="text-center text-xs text-gray-600 mt-3">
-        Your data is processed securely and never shared. First audit is free.
+        Your data is processed securely and never shared. Free plan includes 5 audits.
       </p>
     </div>
   );
