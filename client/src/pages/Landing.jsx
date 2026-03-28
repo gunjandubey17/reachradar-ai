@@ -266,6 +266,7 @@ export default function Landing() {
           <div className="flex gap-6">
             <Link to="/pricing" className="hover:text-white transition">Pricing</Link>
             <Link to="/privacy" className="hover:text-white transition">Privacy</Link>
+            <Link to="/safety-standards" className="hover:text-white transition">Safety Standards</Link>
             <Link to="/terms" className="hover:text-white transition">Terms</Link>
             <a href="mailto:hello@reachradarai.com" className="hover:text-white transition">Contact</a>
           </div>
