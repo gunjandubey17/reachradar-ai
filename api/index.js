@@ -90,24 +90,26 @@ async function checkUserPlan(userId) {
 // Decrement free user's audit count
 async function useFreeTrial(userId) {
   if (!supabase) return;
-  await supabase.rpc('decrement_audits', { user_id_input: userId }).catch(async () => {
-    // Fallback if RPC doesn't exist
-    const { data: user } = await supabase.from('users').select('audits_remaining').eq('id', userId).single();
-    const nextRemaining = Math.max((user?.audits_remaining ?? FREE_AUDIT_LIMIT) - 1, 0);
-    await supabase.from('users').update({ audits_remaining: nextRemaining }).eq('id', userId);
-  });
+  const { error } = await supabase.rpc('decrement_audits', { user_id_input: userId });
+  if (!error) return;
+
+  // Fallback if RPC doesn't exist
+  const { data: user } = await supabase.from('users').select('audits_remaining').eq('id', userId).single();
+  const nextRemaining = Math.max((user?.audits_remaining ?? FREE_AUDIT_LIMIT) - 1, 0);
+  await supabase.from('users').update({ audits_remaining: nextRemaining }).eq('id', userId);
 }
 
 async function recordFreePrecheckUsage(userId, platform) {
   if (!supabase) return;
-  await supabase.from('audits').insert({
+  const { error } = await supabase.from('audits').insert({
     id: crypto.randomUUID(),
     user_id: userId,
     platform: `precheck:${platform || 'general'}`,
     risk_score: null,
     risk_level: 'precheck',
     full_report: JSON.stringify({ type: 'precheck_usage' }),
-  }).catch(() => {});
+  });
+  if (error) console.warn('Failed to record free precheck usage:', error.message);
 }
 
 const AUDIT_SYSTEM_PROMPT = `You are ReachRadar AI — the world's most advanced social media algorithm auditor for 2026.
