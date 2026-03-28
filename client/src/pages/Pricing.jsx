@@ -11,8 +11,8 @@ const plans = [
     period: '',
     desc: 'Try it out',
     features: [
-      '5 free audits',
-      '5 free pre-post checks',
+      'Your first 5 audits are free',
+      'Your first 5 pre-post checks are free',
       'Risk score + red flags',
       'Basic fix suggestions',
       'Single platform',

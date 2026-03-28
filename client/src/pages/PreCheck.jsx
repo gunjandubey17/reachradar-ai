@@ -60,7 +60,7 @@ export default function PreCheck() {
   const [platform, setPlatform] = useState('');
   const [content, setContent] = useState('');
   const [contentUrl, setContentUrl] = useState('');
-  const [engagementGoal, setEngagementGoal] = useState('');
+  const [engagementGoals, setEngagementGoals] = useState([]);
   const [genre, setGenre] = useState('');
   const [images, setImages] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -68,6 +68,14 @@ export default function PreCheck() {
   const [result, setResult] = useState(null);
   const [showReadyMade, setShowReadyMade] = useState(true);
   const imageInputRef = useRef();
+
+  const toggleEngagementGoal = (goalId) => {
+    setEngagementGoals((prev) => (
+      prev.includes(goalId)
+        ? prev.filter((item) => item !== goalId)
+        : [...prev, goalId]
+    ));
+  };
 
   useEffect(() => {
     document.title = 'Pre-Post Content Checker — Will My Post Go Viral? Check Before Publishing | ReachRadar AI';
@@ -107,7 +115,10 @@ export default function PreCheck() {
       const body = { platform };
       if (content.trim()) body.content = content;
       if (contentUrl.trim()) body.contentUrl = contentUrl;
-      if (engagementGoal) body.engagementGoal = engagementGoal;
+      if (engagementGoals.length > 0) {
+        body.engagementGoals = engagementGoals;
+        body.engagementGoal = engagementGoals.join(', ');
+      }
       if (genre) body.genre = genre;
 
       if (images.length > 0) {
@@ -175,7 +186,8 @@ export default function PreCheck() {
       {platform && (
         <div className="grid sm:grid-cols-2 gap-4 mb-6 animate-fade-in">
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">2. Engagement Goal</label>
+            <label className="block text-sm font-medium text-gray-300 mb-2">2. Engagement Goals</label>
+            <p className="text-xs text-gray-500 mb-2">Select one or more goals to shape the optimization.</p>
             <div className="grid grid-cols-2 gap-2">
               {[
                 { id: 'viral', label: 'Go Viral', icon: '🚀' },
@@ -187,9 +199,9 @@ export default function PreCheck() {
               ].map(g => (
                 <button
                   key={g.id}
-                  onClick={() => setEngagementGoal(engagementGoal === g.id ? '' : g.id)}
+                  onClick={() => toggleEngagementGoal(g.id)}
                   className={`p-2.5 rounded-lg border text-xs font-medium transition-all ${
-                    engagementGoal === g.id
+                    engagementGoals.includes(g.id)
                       ? 'border-indigo-400 bg-indigo-500/20 text-white scale-105'
                       : 'border-white/10 bg-white/5 text-gray-400 hover:border-white/20'
                   }`}
@@ -327,7 +339,7 @@ export default function PreCheck() {
       {error && error === 'upgrade' ? (
         <div className="p-6 mb-6 bg-indigo-500/10 border border-indigo-500/30 rounded-xl text-center">
           <p className="text-white font-semibold mb-2">Free trial used</p>
-          <p className="text-gray-400 text-sm mb-4">Your 5 free pre-post checks are used. Upgrade for unlimited content checks, AI image improver, and more.</p>
+          <p className="text-gray-400 text-sm mb-4">Your first 5 free pre-post checks are used. Upgrade for unlimited content checks, AI image improver, and more.</p>
           <a href="/pricing" className="inline-block px-6 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-sm font-medium transition">
             View Pro Plans
           </a>

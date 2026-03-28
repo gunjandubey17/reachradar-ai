@@ -429,7 +429,7 @@ export default async function handler(req, res) {
       // Enforce plan limits
       const planStatus = await checkUserPlan(user.id);
       if (planStatus.plan === 'free' && (planStatus.auditsRemaining ?? FREE_AUDIT_LIMIT) <= 0) {
-        return res.status(403).json({ error: 'Your 5 free audits are used. Upgrade to Pro for unlimited audits.', upgrade: true });
+        return res.status(403).json({ error: 'Your first 5 free audits are used. Upgrade to Pro for unlimited audits.', upgrade: true });
       }
 
       const { platform, manualData, images } = req.body || {};
@@ -498,7 +498,7 @@ export default async function handler(req, res) {
 
       const preCheckPlan = await checkUserPlan(user.id);
       if (preCheckPlan.plan === 'free' && (preCheckPlan.prechecksRemaining ?? FREE_PRECHECK_LIMIT) <= 0) {
-        return res.status(403).json({ error: 'Your 5 free pre-post checks are used. Upgrade to unlock unlimited content checks.', upgrade: true });
+        return res.status(403).json({ error: 'Your first 5 free pre-post checks are used. Upgrade to unlock unlimited content checks.', upgrade: true });
       }
 
       const { content, platform, contentUrl, images, engagementGoal, genre } = req.body || {};
