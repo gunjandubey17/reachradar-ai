@@ -1,3 +1,5 @@
+import { Link } from 'react-router-dom';
+
 export default function Privacy() {
   return (
     <div className="pt-24 pb-16 max-w-3xl mx-auto px-4">
@@ -26,7 +28,13 @@ export default function Privacy() {
         <p>We do not sell, trade, or share your personal data with third parties. Your analytics data is processed by our AI (powered by Anthropic Claude) solely to generate your audit results and is not stored permanently.</p>
 
         <h2 className="text-xl font-semibold text-white mt-6">4. Data Retention & Deletion</h2>
-        <p>You can request deletion of your account and all associated data at any time by contacting us at rakhhbakk@gmail.com. We will delete your data within 30 days of receiving your request.</p>
+        <p>
+          You can request deletion of your account and all associated data at any time using our{' '}
+          <Link to="/delete-account" className="text-indigo-400 hover:underline">
+            delete account page
+          </Link>{' '}
+          or by contacting us at rakhhbakk@gmail.com. We will delete your data within 30 days of receiving your request.
+        </p>
 
         <h2 className="text-xl font-semibold text-white mt-6">5. Security</h2>
         <p>We use industry-standard security measures including encrypted connections (HTTPS), secure password hashing, and JWT-based authentication.</p>
