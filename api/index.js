@@ -8,6 +8,16 @@ const supabase = process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_KEY
 
 const FREE_AUDIT_LIMIT = 5;
 const FREE_PRECHECK_LIMIT = 5;
+const FREE_DAILY_IDEA_LIMIT = 1;
+const PRO_DAILY_IDEA_LIMIT = 3;
+const DAILY_IDEA_RISK_LEVEL = 'daily_ideas';
+
+const DAILY_IDEA_BUCKETS = [
+  { id: 'viral', label: 'Hook Content', cue: 'Hook-led, pattern-interrupt content built to stop the scroll and earn reach.' },
+  { id: 'value', label: 'Value Content', cue: 'Practical advice, step-by-step tips, or save-worthy education.' },
+  { id: 'relatable', label: 'Relatable Content', cue: 'Human moments, shared struggles, memes, or audience self-recognition.' },
+  { id: 'authority', label: 'Authority Content', cue: 'Proof, results, story, insight, or credibility-building content.' },
+];
 
 // Simple JWT-like token (base64 encoded JSON with expiry)
 function createToken(payload) {
@@ -110,6 +120,178 @@ async function recordFreePrecheckUsage(userId, platform) {
     full_report: JSON.stringify({ type: 'precheck_usage' }),
   });
   if (error) console.warn('Failed to record free precheck usage:', error.message);
+}
+
+function getTodayKey() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function getDailyIdeaLimitForPlan(plan) {
+  return plan === 'pro' ? PRO_DAILY_IDEA_LIMIT : FREE_DAILY_IDEA_LIMIT;
+}
+
+function parseStoredJson(value) {
+  if (!value) return {};
+  if (typeof value === 'object') return value;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return {};
+  }
+}
+
+function getRotatedBuckets(count, dayKey = getTodayKey()) {
+  const daySeed = Number(dayKey.replaceAll('-', ''));
+  const startIndex = daySeed % DAILY_IDEA_BUCKETS.length;
+  return Array.from({ length: count }, (_, index) => DAILY_IDEA_BUCKETS[(startIndex + index) % DAILY_IDEA_BUCKETS.length]);
+}
+
+function formatDailyIdeaRecord(record) {
+  if (!record) return null;
+  const report = parseStoredJson(record.full_report);
+  return {
+    id: record.id,
+    created_at: record.created_at,
+    ...report,
+  };
+}
+
+async function getDailyIdeaRecords(userId, limit = 14) {
+  if (!supabase) return [];
+  const { data, error } = await supabase
+    .from('audits')
+    .select('id, platform, full_report, created_at')
+    .eq('user_id', userId)
+    .eq('risk_level', DAILY_IDEA_RISK_LEVEL)
+    .order('created_at', { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    console.warn('Failed to load daily ideas:', error.message);
+    return [];
+  }
+
+  return (data || []).map((record) => formatDailyIdeaRecord(record)).filter(Boolean);
+}
+
+async function getTodaysDailyIdeaRecord(userId) {
+  const records = await getDailyIdeaRecords(userId, 7);
+  const todayKey = getTodayKey();
+  return records.find((record) => record.idea_date === todayKey) || null;
+}
+
+function calculateDailyIdeaStreak(records) {
+  if (!records.length) return 0;
+  const uniqueDates = [...new Set(records.map((record) => record.idea_date).filter(Boolean))].sort((a, b) => b.localeCompare(a));
+  let streak = 0;
+  const cursor = new Date(getTodayKey());
+  for (const dateKey of uniqueDates) {
+    const expected = cursor.toISOString().slice(0, 10);
+    if (dateKey !== expected) break;
+    streak += 1;
+    cursor.setDate(cursor.getDate() - 1);
+  }
+  return streak;
+}
+
+async function saveDailyIdeaRecord(userId, payload) {
+  if (!supabase) return payload;
+  const scores = (payload.posts || []).map((post) => Number(post.reach_score)).filter((value) => Number.isFinite(value));
+  const averageScore = scores.length ? Math.round(scores.reduce((sum, value) => sum + value, 0) / scores.length) : null;
+  const insertPayload = {
+    id: crypto.randomUUID(),
+    user_id: userId,
+    platform: `daily-ideas:${payload.niche || 'general'}`,
+    risk_score: averageScore,
+    risk_level: DAILY_IDEA_RISK_LEVEL,
+    full_report: JSON.stringify(payload),
+  };
+
+  const { data, error } = await supabase
+    .from('audits')
+    .insert(insertPayload)
+    .select('id, created_at, full_report')
+    .single();
+
+  if (error) throw new Error('Failed to save daily ideas');
+  return formatDailyIdeaRecord(data);
+}
+
+function summarizeRecentDailyIdeas(records) {
+  if (!records.length) return 'No previous daily ideas yet.';
+  return records
+    .slice(0, 5)
+    .map((record) => {
+      const titles = (record.posts || []).slice(0, 3).map((post) => post.idea).filter(Boolean).join(' | ');
+      return `${record.idea_date}: niche=${record.niche}, goal=${record.goal}, ideas=${titles}`;
+    })
+    .join('\n');
+}
+
+async function generateDailyIdeasPlan({ niche, goal, postCount, recentRecords = [] }) {
+  const buckets = getRotatedBuckets(postCount);
+  const bucketInstructions = buckets
+    .map((bucket, index) => `${index + 1}. ${bucket.label} (${bucket.id}) -> ${bucket.cue}`)
+    .join('\n');
+
+  const prompt = `You are ReachRadar AI's daily content strategist.
+Generate exactly ${postCount} social post ideas for today.
+
+NICHE: ${niche}
+GOAL: ${goal}
+
+Use this exact bucket mix today:
+${bucketInstructions}
+
+Recent generated ideas to avoid repeating:
+${summarizeRecentDailyIdeas(recentRecords)}
+
+Return ONLY valid JSON with this exact shape:
+{
+  "strategy_note": "<one sentence on today's mix>",
+  "posts": [
+    {
+      "bucket": "<viral|value|relatable|authority>",
+      "bucket_label": "<Hook Content|Value Content|Relatable Content|Authority Content>",
+      "idea": "<clear post concept>",
+      "hook": "<max 10 words>",
+      "format": "<Reel|Carousel|Story|Static Post|Thread>",
+      "caption": "<under 100 words>",
+      "reach_score": <integer 1-100>
+    }
+  ]
+}
+
+Rules:
+- Be concrete, not generic.
+- Keep hooks short and sharp.
+- Keep captions useful and readable.
+- Match the niche and goal exactly.
+- Do not output essays or explanations outside the JSON.
+`;
+
+  const client = new Anthropic();
+  const message = await client.messages.create({
+    model: 'claude-sonnet-4-20250514',
+    max_tokens: 1800,
+    messages: [{ role: 'user', content: prompt }],
+  });
+
+  const parsed = parseAIResponse(message.content[0].text);
+  const posts = Array.isArray(parsed.posts) ? parsed.posts.slice(0, postCount) : [];
+  return {
+    strategy_note: parsed.strategy_note || 'A balanced daily mix built to help you post consistently.',
+    buckets: buckets.map((bucket) => ({ id: bucket.id, label: bucket.label })),
+    posts: posts.map((post, index) => ({
+      bucket: post.bucket || buckets[index]?.id || 'value',
+      bucket_label: post.bucket_label || buckets[index]?.label || 'Value Content',
+      idea: post.idea || 'Daily content idea',
+      hook: post.hook || 'Start with this angle',
+      format: post.format || 'Reel',
+      caption: post.caption || 'Post this with a direct, niche-specific takeaway.',
+      reach_score: Number.isFinite(Number(post.reach_score)) ? Number(post.reach_score) : 72,
+    })),
+  };
 }
 
 const AUDIT_SYSTEM_PROMPT = `You are ReachRadar AI — the world's most advanced social media algorithm auditor for 2026.
@@ -406,6 +588,7 @@ export default async function handler(req, res) {
         .select('id, platform, risk_score, risk_level, created_at')
         .eq('user_id', tokenUser.id)
         .neq('risk_level', 'precheck')
+        .neq('risk_level', DAILY_IDEA_RISK_LEVEL)
         .order('created_at', { ascending: false })
         .limit(20);
       return res.json({ audits: audits || [] });
@@ -977,12 +1160,95 @@ Each prompt should be detailed (50+ words) and describe the EXACT scene, subject
       });
     }
 
+    // Daily post ideas - today's set
+    if (url === '/api/daily-ideas/today' && req.method === 'GET') {
+      const user = getUserFromReq(req);
+      if (!user) return res.status(401).json({ error: 'Login required' });
+
+      const planStatus = await checkUserPlan(user.id);
+      const today = await getTodaysDailyIdeaRecord(user.id);
+      const history = await getDailyIdeaRecords(user.id, 10);
+
+      return res.json({
+        plan: planStatus.plan,
+        postLimit: getDailyIdeaLimitForPlan(planStatus.plan),
+        today,
+        streak: calculateDailyIdeaStreak(history),
+        history: planStatus.plan === 'pro' ? history : [],
+      });
+    }
+
+    // Daily post ideas - generate today's set
+    if (url === '/api/daily-ideas/generate' && req.method === 'POST') {
+      const user = getUserFromReq(req);
+      if (!user) return res.status(401).json({ error: 'Login required' });
+
+      const { niche, goal } = req.body || {};
+      if (!niche || !goal) {
+        return res.status(400).json({ error: 'Niche and goal are required' });
+      }
+
+      const planStatus = await checkUserPlan(user.id);
+      const existingToday = await getTodaysDailyIdeaRecord(user.id);
+      const history = await getDailyIdeaRecords(user.id, 10);
+
+      if (existingToday) {
+        return res.json({
+          generated: false,
+          plan: planStatus.plan,
+          postLimit: getDailyIdeaLimitForPlan(planStatus.plan),
+          today: existingToday,
+          streak: calculateDailyIdeaStreak(history),
+          history: planStatus.plan === 'pro' ? history : [],
+        });
+      }
+
+      const postLimit = getDailyIdeaLimitForPlan(planStatus.plan);
+      const generatedPlan = await generateDailyIdeasPlan({
+        niche,
+        goal,
+        postCount: postLimit,
+        recentRecords: history,
+      });
+
+      const payload = {
+        idea_date: getTodayKey(),
+        niche,
+        goal,
+        post_limit: postLimit,
+        strategy_note: generatedPlan.strategy_note,
+        buckets: generatedPlan.buckets,
+        posts: generatedPlan.posts.map((post) => planStatus.plan === 'pro' ? post : {
+          bucket: post.bucket,
+          bucket_label: post.bucket_label,
+          idea: post.idea,
+          hook: post.hook,
+          format: post.format,
+          caption: post.caption,
+        }),
+      };
+
+      const savedRecord = await saveDailyIdeaRecord(user.id, payload);
+      const updatedHistory = [savedRecord, ...history].filter(Boolean);
+      const streak = calculateDailyIdeaStreak(updatedHistory);
+      const withStreak = { ...savedRecord, streak };
+
+      return res.json({
+        generated: true,
+        plan: planStatus.plan,
+        postLimit: postLimit,
+        today: withStreak,
+        streak,
+        history: planStatus.plan === 'pro' ? updatedHistory.map((record, index) => index === 0 ? withStreak : record) : [],
+      });
+    }
+
     // Plans
     if (url === '/api/payments/plans') {
       return res.json({
         plans: [
-          { id: 'monthly', name: 'Pro Monthly', price: 4.99, mode: 'subscription', interval: 'month' },
-          { id: 'yearly', name: 'Pro Yearly', price: 29.99, mode: 'subscription', interval: 'year' },
+          { id: 'monthly', name: 'Pro Monthly', price: 1.99, mode: 'subscription', interval: 'month' },
+          { id: 'yearly', name: 'Pro Yearly', price: 9.99, mode: 'subscription', interval: 'year' },
         ],
       });
     }
@@ -994,8 +1260,8 @@ Each prompt should be detailed (50+ words) and describe the EXACT scene, subject
 
       const { planId } = req.body || {};
       const plans = {
-        monthly: { amount: 499, currency: 'USD', name: 'Pro Monthly', period: 'monthly' },
-        yearly: { amount: 2999, currency: 'USD', name: 'Pro Yearly', period: 'yearly' },
+        monthly: { amount: 199, currency: 'USD', name: 'Pro Monthly', period: 'monthly' },
+        yearly: { amount: 999, currency: 'USD', name: 'Pro Yearly', period: 'yearly' },
       };
       const plan = plans[planId];
       if (!plan) return res.status(400).json({ error: 'Invalid plan' });

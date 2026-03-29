@@ -13,6 +13,7 @@ import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import DeleteAccount from './pages/DeleteAccount';
 import SafetyStandards from './pages/SafetyStandards';
+import DailyIdeas from './pages/DailyIdeas';
 
 export default function App() {
   return (
@@ -24,6 +25,7 @@ export default function App() {
         <Route path="/results/:id" element={<Results />} />
         <Route path="/results" element={<Results />} />
         <Route path="/pre-check" element={<PreCheck />} />
+        <Route path="/daily-ideas" element={<DailyIdeas />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/pricing" element={<Pricing />} />
         <Route path="/login" element={<Auth mode="login" />} />
