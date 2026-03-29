@@ -1,7 +1,7 @@
 name: reachradar_mobile
 description: ReachRadar AI mobile app scaffold for Android and iOS.
 publish_to: "none"
-version: 0.1.4+5
+version: 0.1.5+6
 
 environment:
   sdk: ">=3.4.0 <4.0.0"
@@ -16,6 +16,8 @@ dependencies:
   image_picker: ^1.1.2
   intl: ^0.20.2
   webview_flutter: ^4.10.0
+  webview_flutter_android: ^4.10.15
+  file_picker: ^10.3.2
 
 dev_dependencies:
   flutter_test:
@@ -24,4 +26,3 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-
