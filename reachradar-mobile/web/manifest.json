@@ -1,6 +1,6 @@
-{
-    "name": "reachradar_mobile",
-    "short_name": "reachradar_mobile",
+﻿{
+    "name": "ReachRadar AI",
+    "short_name": "ReachRadar AI",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
@@ -33,3 +33,4 @@
         }
     ]
 }
+

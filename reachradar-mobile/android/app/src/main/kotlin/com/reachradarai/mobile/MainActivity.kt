@@ -1,4 +1,4 @@
-package com.example.reachradar_mobile
+﻿package com.reachradarai.mobile
 
 import io.flutter.embedding.android.FlutterActivity
 
