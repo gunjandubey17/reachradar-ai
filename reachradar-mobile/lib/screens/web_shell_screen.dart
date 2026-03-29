@@ -13,7 +13,6 @@ class WebShellScreen extends StatefulWidget {
 class _WebShellScreenState extends State<WebShellScreen> {
   late final WebViewController _controller;
   int _progress = 0;
-  bool _canGoBack = false;
 
   @override
   void initState() {
@@ -30,13 +29,9 @@ class _WebShellScreenState extends State<WebShellScreen> {
             if (!mounted) return;
             setState(() => _progress = progress);
           },
-          onPageFinished: (_) async {
-            final canGoBack = await _controller.canGoBack();
+          onPageFinished: (_) {
             if (!mounted) return;
-            setState(() {
-              _progress = 100;
-              _canGoBack = canGoBack;
-            });
+            setState(() => _progress = 100);
           },
         ),
       )
@@ -47,9 +42,6 @@ class _WebShellScreenState extends State<WebShellScreen> {
     final canGoBack = await _controller.canGoBack();
     if (canGoBack) {
       await _controller.goBack();
-      if (mounted) {
-        setState(() => _canGoBack = true);
-      }
       return false;
     }
     return true;
@@ -67,43 +59,36 @@ class _WebShellScreenState extends State<WebShellScreen> {
         }
       },
       child: Scaffold(
-        appBar: AppBar(
-          title: const Text(AppConfig.appName),
-          actions: [
-            IconButton(
-              tooltip: 'Home',
-              onPressed: () {
-                _controller.loadRequest(Uri.parse(AppConfig.siteUrl));
-              },
-              icon: const Icon(Icons.home_outlined),
+        body: Stack(
+          children: [
+            SafeArea(
+              bottom: false,
+              child: WebViewWidget(controller: _controller),
             ),
-            IconButton(
-              tooltip: 'Refresh',
-              onPressed: () {
-                _controller.reload();
-              },
-              icon: const Icon(Icons.refresh),
-            ),
+            if (_progress < 100)
+              const Positioned.fill(
+                child: IgnorePointer(
+                  ignoring: true,
+                  child: ColoredBox(
+                    color: Color(0x14000000),
+                    child: Center(
+                      child: CircularProgressIndicator(),
+                    ),
+                  ),
+                ),
+              ),
+            if (_progress < 100)
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: SafeArea(
+                  bottom: false,
+                  child: LinearProgressIndicator(value: _progress / 100),
+                ),
+              ),
           ],
-          bottom: PreferredSize(
-            preferredSize: const Size.fromHeight(2),
-            child: _progress < 100
-                ? LinearProgressIndicator(value: _progress / 100)
-                : const SizedBox.shrink(),
-          ),
         ),
-        body: SafeArea(
-          bottom: false,
-          child: WebViewWidget(controller: _controller),
-        ),
-        floatingActionButton: _canGoBack
-            ? FloatingActionButton.small(
-                onPressed: () async {
-                  await _handleBack();
-                },
-                child: const Icon(Icons.arrow_back),
-              )
-            : null,
       ),
     );
   }
