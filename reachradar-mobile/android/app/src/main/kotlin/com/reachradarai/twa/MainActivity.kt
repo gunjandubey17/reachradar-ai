@@ -1,4 +1,4 @@
-﻿package com.reachradarai.mobile
+﻿package com.reachradarai.twa
 
 import io.flutter.embedding.android.FlutterActivity
 

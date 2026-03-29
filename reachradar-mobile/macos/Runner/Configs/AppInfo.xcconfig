@@ -8,8 +8,9 @@
 PRODUCT_NAME = ReachRadar AI
 
 // The application's bundle identifier
-PRODUCT_BUNDLE_IDENTIFIER = com.reachradarai.mobile
+PRODUCT_BUNDLE_IDENTIFIER = com.reachradarai.twa
 
 // The copyright displayed in application information
 PRODUCT_COPYRIGHT = Copyright Â© 2026 com.example. All rights reserved.
+
 

@@ -13,7 +13,7 @@ if (keystorePropertiesFile.exists()) {
 }
 
 android {
-    namespace = "com.reachradarai.mobile"
+    namespace = "com.reachradarai.twa"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -27,7 +27,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.reachradarai.mobile"
+        applicationId = "com.reachradarai.twa"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
@@ -60,3 +60,4 @@ android {
 flutter {
     source = "../.."
 }
+
