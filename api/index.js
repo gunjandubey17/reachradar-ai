@@ -423,6 +423,113 @@ CRITICAL RULES:
 6. Even with zero content info, you can ALWAYS provide: platform-specific algorithm tips, proven caption frameworks, engagement strategies, hashtag research methodology, posting time analysis, and hook formulas.
 7. The goal is: the user should ALWAYS walk away with something useful they can immediately apply.`;
 
+async function generateContentCalendarPlan({ platform, auditSummary, redFlag }) {
+  const prompt = `You are ReachRadar AI's fast-response content planner for ${platform} in 2026.
+
+Create a 30-day recovery calendar that is concise, practical, and easy to publish.
+
+AUDIT CONTEXT: ${auditSummary || 'No summary provided'}
+PRIORITY ISSUE: ${redFlag || 'General recovery'}
+
+Return ONLY valid JSON in this exact shape:
+{
+  "type": "content_calendar",
+  "title": "Your 30-Day Recovery Content Calendar",
+  "weeks": [
+    {
+      "week": 1,
+      "theme": "<2-5 words>",
+      "posts": [
+        {
+          "day": "<Day 1>",
+          "content_type": "<Reel|Carousel|Story|Static Post|Video|Thread>",
+          "topic": "<specific post idea, under 12 words>",
+          "title": "<caption first line, under 12 words>",
+          "hook": "<opening line, under 8 words>",
+          "description": "<2 short sentences, under 30 words total>",
+          "hashtags": ["<3 relevant hashtags max>"],
+          "best_time": "<short time window>",
+          "estimated_reach": "<short estimate>",
+          "notes": "<production tip, under 10 words>"
+        }
+      ]
+    }
+  ],
+  "strategy_notes": "<2 short sentences total>"
+}
+
+Rules:
+- Output exactly 4 weeks and exactly 30 posts total.
+- Keep week post counts balanced across the month.
+- Keep every field short and specific.
+- Avoid long explanations.
+- Match the audit context and issue.
+- Make the plan ready to use for ${platform}.
+`;
+
+  const client = new Anthropic();
+  const message = await client.messages.create({
+    model: 'claude-sonnet-4-20250514',
+    max_tokens: 2200,
+    messages: [{ role: 'user', content: prompt }],
+  });
+
+  const parsed = parseAIResponse(message.content[0].text);
+  const weeks = Array.isArray(parsed.weeks) ? parsed.weeks.slice(0, 4) : [];
+  const normalizedWeeks = weeks.map((week, weekIndex) => ({
+    week: Number.isFinite(Number(week.week)) ? Number(week.week) : weekIndex + 1,
+    theme: week.theme || `Week ${weekIndex + 1} Focus`,
+    posts: Array.isArray(week.posts) ? week.posts : [],
+  }));
+
+  const flattenedPosts = normalizedWeeks.flatMap((week, weekIndex) =>
+    week.posts.map((post, postIndex) => ({
+      week: weekIndex + 1,
+      day: post.day || `Day ${weekIndex * 7 + postIndex + 1}`,
+      content_type: post.content_type || 'Reel',
+      topic: post.topic || 'Recovery-focused post idea',
+      title: post.title || 'Post this today',
+      hook: post.hook || 'Start with this',
+      description: post.description || 'Share one clear takeaway and end with a simple CTA.',
+      hashtags: Array.isArray(post.hashtags) ? post.hashtags.slice(0, 3) : [],
+      best_time: post.best_time || 'Evening',
+      estimated_reach: post.estimated_reach || 'Moderate',
+      notes: post.notes || 'Keep it simple',
+    }))
+  );
+
+  const trimmedPosts = flattenedPosts.slice(0, 30);
+  while (trimmedPosts.length < 30) {
+    const nextDay = trimmedPosts.length + 1;
+    trimmedPosts.push({
+      week: nextDay <= 8 ? 1 : nextDay <= 16 ? 2 : nextDay <= 23 ? 3 : 4,
+      day: `Day ${nextDay}`,
+      content_type: 'Reel',
+      topic: 'Recovery-focused post idea',
+      title: 'Post this today',
+      hook: 'Lead with a result',
+      description: 'Share one focused idea. End with a direct CTA.',
+      hashtags: [],
+      best_time: 'Evening',
+      estimated_reach: 'Moderate',
+      notes: 'Film in natural light',
+    });
+  }
+
+  const groupedWeeks = [1, 2, 3, 4].map((weekNumber) => ({
+    week: weekNumber,
+    theme: normalizedWeeks[weekNumber - 1]?.theme || `Week ${weekNumber} Focus`,
+    posts: trimmedPosts.filter((post) => post.week === weekNumber),
+  }));
+
+  return {
+    type: 'content_calendar',
+    title: parsed.title || 'Your 30-Day Recovery Content Calendar',
+    weeks: groupedWeeks,
+    strategy_notes: parsed.strategy_notes || 'Use this plan to reset consistency and improve signal quality over the next 30 days.',
+  };
+}
+
 function parseAIResponse(text) {
   try {
     return JSON.parse(text);
@@ -944,6 +1051,11 @@ export default async function handler(req, res) {
 
       if (!platform || !fixType) {
         return res.status(400).json({ error: 'Platform and fix type are required' });
+      }
+
+      if (fixType === 'content_calendar') {
+        const calendarPlan = await generateContentCalendarPlan({ platform, auditSummary, redFlag });
+        return res.json(calendarPlan);
       }
 
       const FIX_IT_PROMPT = `You are ReachRadar AI — an expert content strategist and algorithm recovery specialist for ${platform} in 2026.
