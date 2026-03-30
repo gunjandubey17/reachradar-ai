@@ -431,40 +431,30 @@ Create a 30-day recovery calendar that is concise, practical, and easy to publis
 AUDIT CONTEXT: ${auditSummary || 'No summary provided'}
 PRIORITY ISSUE: ${redFlag || 'General recovery'}
 
-Return ONLY valid JSON in this exact shape:
-{
-  "type": "content_calendar",
-  "title": "Your 30-Day Recovery Content Calendar",
-  "weeks": [
-    {
-      "week": 1,
-      "theme": "<2-5 words>",
-      "posts": [
-        {
-          "day": "<Day 1>",
-          "content_type": "<Reel|Carousel|Story|Static Post|Video|Thread>",
-          "topic": "<specific post idea, under 12 words>",
-          "title": "<caption first line, under 12 words>",
-          "hook": "<opening line, under 8 words>",
-          "description": "<2 short sentences, under 30 words total>",
-          "hashtags": ["<3 relevant hashtags max>"],
-          "best_time": "<short time window>",
-          "estimated_reach": "<short estimate>",
-          "notes": "<production tip, under 10 words>"
-        }
-      ]
-    }
-  ],
-  "strategy_notes": "<2 short sentences total>"
-}
+Return plain text only, using exactly these line formats:
+
+TITLE|Your 30-Day Recovery Content Calendar
+WEEK|1|<short theme>
+POST|1|<Reel/Carousel/Story/Static Post/Video/Thread>|<topic>|<title>|<hook>|<description>|<comma-separated hashtags>|<best time>|<estimated reach>|<notes>
+POST|2|...
+WEEK|2|<short theme>
+...
+WEEK|4|<short theme>
+...
+STRATEGY|<two short sentences>
 
 Rules:
-- Output exactly 4 weeks and exactly 30 posts total.
-- Keep week post counts balanced across the month.
-- Keep every field short and specific.
-- Avoid long explanations.
+- Output exactly 4 WEEK lines.
+- Output exactly 30 POST lines total.
+- The first field must always be TITLE, WEEK, POST, or STRATEGY.
+- Use the pipe character only as a separator.
+- Do not use the pipe character inside field values.
+- Keep each field short and specific.
+- Hashtags must be comma-separated with at most 3 hashtags per post.
 - Match the audit context and issue.
 - Make the plan ready to use for ${platform}.
+- Do not output JSON.
+- Do not output markdown.
 `;
 
   const client = new Anthropic();
@@ -474,29 +464,63 @@ Rules:
     messages: [{ role: 'user', content: prompt }],
   });
 
-  const parsed = parseAIResponse(message.content[0].text);
-  const weeks = Array.isArray(parsed.weeks) ? parsed.weeks.slice(0, 4) : [];
-  const normalizedWeeks = weeks.map((week, weekIndex) => ({
-    week: Number.isFinite(Number(week.week)) ? Number(week.week) : weekIndex + 1,
-    theme: week.theme || `Week ${weekIndex + 1} Focus`,
-    posts: Array.isArray(week.posts) ? week.posts : [],
-  }));
+  const rawText = message.content[0].text || '';
+  const lines = rawText
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
 
-  const flattenedPosts = normalizedWeeks.flatMap((week, weekIndex) =>
-    week.posts.map((post, postIndex) => ({
-      week: weekIndex + 1,
-      day: post.day || `Day ${weekIndex * 7 + postIndex + 1}`,
-      content_type: post.content_type || 'Reel',
-      topic: post.topic || 'Recovery-focused post idea',
-      title: post.title || 'Post this today',
-      hook: post.hook || 'Start with this',
-      description: post.description || 'Share one clear takeaway and end with a simple CTA.',
-      hashtags: Array.isArray(post.hashtags) ? post.hashtags.slice(0, 3) : [],
-      best_time: post.best_time || 'Evening',
-      estimated_reach: post.estimated_reach || 'Moderate',
-      notes: post.notes || 'Keep it simple',
-    }))
-  );
+  let calendarTitle = 'Your 30-Day Recovery Content Calendar';
+  let strategyNotes = 'Use this plan to reset consistency and improve signal quality over the next 30 days.';
+  const weekThemes = new Map();
+  const flattenedPosts = [];
+  let currentWeek = 1;
+
+  for (const line of lines) {
+    const parts = line.split('|').map((part) => part.trim());
+    const kind = parts[0];
+
+    if (kind === 'TITLE' && parts[1]) {
+      calendarTitle = parts[1];
+      continue;
+    }
+
+    if (kind === 'WEEK' && parts[1]) {
+      const weekNumber = Number(parts[1]);
+      if (Number.isFinite(weekNumber) && weekNumber >= 1 && weekNumber <= 4) {
+        currentWeek = weekNumber;
+        weekThemes.set(weekNumber, parts[2] || `Week ${weekNumber} Focus`);
+      }
+      continue;
+    }
+
+    if (kind === 'POST') {
+      const hashtags = (parts[7] || '')
+        .split(',')
+        .map((tag) => tag.trim())
+        .filter(Boolean)
+        .slice(0, 3);
+
+      flattenedPosts.push({
+        week: currentWeek,
+        day: `Day ${parts[1] || flattenedPosts.length + 1}`,
+        content_type: parts[2] || 'Reel',
+        topic: parts[3] || 'Recovery-focused post idea',
+        title: parts[4] || 'Post this today',
+        hook: parts[5] || 'Start with this',
+        description: parts[6] || 'Share one clear takeaway and end with a simple CTA.',
+        hashtags,
+        best_time: parts[8] || 'Evening',
+        estimated_reach: parts[9] || 'Moderate',
+        notes: parts[10] || 'Keep it simple',
+      });
+      continue;
+    }
+
+    if (kind === 'STRATEGY' && parts[1]) {
+      strategyNotes = parts.slice(1).join(' ');
+    }
+  }
 
   const trimmedPosts = flattenedPosts.slice(0, 30);
   while (trimmedPosts.length < 30) {
@@ -518,15 +542,15 @@ Rules:
 
   const groupedWeeks = [1, 2, 3, 4].map((weekNumber) => ({
     week: weekNumber,
-    theme: normalizedWeeks[weekNumber - 1]?.theme || `Week ${weekNumber} Focus`,
+    theme: weekThemes.get(weekNumber) || `Week ${weekNumber} Focus`,
     posts: trimmedPosts.filter((post) => post.week === weekNumber),
   }));
 
   return {
     type: 'content_calendar',
-    title: parsed.title || 'Your 30-Day Recovery Content Calendar',
+    title: calendarTitle,
     weeks: groupedWeeks,
-    strategy_notes: parsed.strategy_notes || 'Use this plan to reset consistency and improve signal quality over the next 30 days.',
+    strategy_notes: strategyNotes,
   };
 }
 
